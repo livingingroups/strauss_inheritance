@@ -30,35 +30,6 @@ set.seed(1989)
 ################################################################################
 # Set invariant global parameters
 group.size <- 30
-turnover = 1 ## 10% of group size
-# reproduction <- function(rank, rank.effect = 8){
-#   rank <- (rank-1)/(max(rank)-1)
-#   1/(10*(1+exp((rank-mean(rank))*rank.effect)))
-# }
-
-
-
-
-# mortality <- function(rank, rank.effect = 8){
-#   rank <- (rank-1)/(max(rank)-1)
-#   1/(10*(1+exp((-rank+mean(rank))*rank.effect)))
-# }
-# reproduction <- function(rank, rank.effect = 8){
-#   rank <- (rank-1)/(max(rank)-1)
-#   shape <- (0.1 * exp(rank.effect/2 * -rank))
-#   shape/mean(shape) * 0.05
-# }
-# mortality <- function(rank, rank.effect = 0){
-#   rank <- (rank-1)/(max(rank)-1)
-#   rank <- rank[length(rank):1]
-#   1/(10*(1+exp((rank-mean(rank))*rank.effect)))
-# }
-
-## Flat mortality
-mortality <- function(stan_rank, rank.effect){
-  return(rep(1/length(stan_rank), length(stan_rank)))
-}
-
 
 letters.long <- c(letters,as.vector(t(outer(X = letters, Y = letters, paste0))))
 
@@ -93,7 +64,7 @@ output.list <- list()
 rank.inher.precis.list <- c(0, 2, 4)
 rank.effect.list <- c(0, 1, 2)
 nreplicates <- 20
-generations = 15
+generations = 30
 
 for(replicate in 1:nreplicates){
   group$replicate <- replicate
@@ -148,8 +119,8 @@ save(output, file = 'rank_data_simulated.Rdata')
 # 
 # ################################################################################
 # ### Visualize output in grid
-png(filename= here('plots/mri_grid.png'), width = 5, height = 5, units = 'in',
-    res = 300)
+# png(filename= here('plots/mri_grid.png'), width = 5, height = 5, units = 'in',
+#     res = 300)
 par(mfrow = c(3,3),
     mar = c(0.2,0.2,0,0),
     yaxt = 'n',

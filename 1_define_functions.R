@@ -17,6 +17,13 @@ trunc_norm <- function(mean, n, sd, max, min){
 ################################################################################
 
 ################################################################################
+## Flat mortality
+mortality <- function(stan_rank, rank.effect){
+  return(rep(1/length(stan_rank), length(stan_rank)))
+}
+################################################################################
+
+################################################################################
 standardize_rank <- function(rank){
   return(1 -(rank-1)/(max(rank)-1))
 }
@@ -76,57 +83,33 @@ get_descendants <- function(g, id){
 ################################################################################
 inherit_mri_oldest <- function(g, new.id, mother, rank.inher.precis){
   
-  for(i in 1:nrow(new.id)){
-    sibs <- g[!is.na(g$mother) & g$mother == new.id$mother[i],]
-    if(nrow(sibs)){
-      sibs.birth.gen <- as.numeric(do.call(rbind,(strsplit(sibs$id, split = '\\.')))[,2])
-      oldest.sib <- sibs[which.min(sibs.birth.gen),]
-      sibs.matriline <- rbind(oldest.sib, g[g$id %in% get_descendants(g, oldest.sib$id),])
-      new.id$rank[i] <- max(sibs.matriline$rank)+0.1
-    }else{
-      new.id$rank[i] <- g$rank[g$id == new.id$mother[i]]+0.1
-    }
+  sibs <- g[!is.na(g$mother) & g$mother == new.id$mother,]
+  if(nrow(sibs)){
+    sibs.birth.gen <- as.numeric(do.call(rbind,(strsplit(sibs$id, split = '\\.')))[,2])
+    oldest.sib <- sibs[which.min(sibs.birth.gen),]
+    sibs.matriline <- rbind(oldest.sib, g[g$id %in% get_descendants(g, oldest.sib$id),])
+    new.id$rank <- max(sibs.matriline$rank)+0.1
+  }else{
+    new.id$rank  <- g$rank[g$id == new.id$mother[i]]+0.1
   }
   return(new.id)
 }
 ################################################################################
 
 ################################################################################
-# inherit_parent_offspring_cor <- function(g, new.id, mother, rank.inher.precis){
-#   
-#   min.change <-  -mother$rank 
-#   max.change <- max(g$rank) - mother$rank + 1
-#     
-#   for(i in 1:nrow(new.id)){
-#     if(rank.inher.precis == 0){
-#       new.id$rank[i] <- runif(n = 1, min = 0, max = max(g$rank) + 1)
-#     }else{
-#     new.id$rank[i] <- mother$rank[i] + trunc_norm(mean = 0, n = 1, 
-#                                                     sd = max(g$rank)/2^rank.inher.precis,
-#                                                     max = max.change[i],
-#                                                     min = min.change[i])
-#     }
-#   }
-#   
-#   return(new.id)
-# }
-
 inherit_parent_offspring_cor <- function(g, new.id, mother, rank.inher.precis){
   
   min.change <-  -mother$rank 
   max.change <- max(g$rank) - mother$rank + 1
   
-  for(i in 1:nrow(new.id)){
-    if(rank.inher.precis == 0){
-      place.above <- sample(g$rank, 1)
-      new.id$rank[i] <- place.above - 0.1
-      new.id$rank[i] <- runif(n = 1, min = 0, max = max(g$rank) + 1)
-    }else{
-      new.id$rank[i] <- mother$rank[i] + trunc_norm(mean = 0, n = 1, 
-                                                      sd = max(g$rank)/2^rank.inher.precis,
-                                                      max = max.change[i],
-                                                      min = min.change[i])
-    }
+  if(rank.inher.precis == 0){
+    place.above <- sample(c(g$rank, max(g$rank) + 1), 1)
+    new.id$rank <- place.above - 0.1
+  }else{
+    new.id$rank <- mother$rank + trunc_norm(mean = 0, n = 1, 
+                                            sd = max(g$rank)/2^rank.inher.precis,
+                                            max = max.change,
+                                            min = min.change)
   }
   
   return(new.id)
@@ -136,10 +119,10 @@ inherit_parent_offspring_cor <- function(g, new.id, mother, rank.inher.precis){
 ################################################################################
 add_new_id <- function(g, mother, reproduce, die, f_inherit, inheritance, rank.inher.precis){
   
-  reproduce <- g$id[reproduce]
-  n.id <- paste0(str_extract(reproduce,
+  reproducer <- g$id[reproduce]
+  n.id <- paste0(str_extract(reproducer,
                              '[:alpha:]+'), 
-                 as.numeric(str_extract(reproduce,
+                 as.numeric(str_extract(reproducer,
                                         '[:digit:]+'))+1, 
                  '.',
                  unique(g$generation+1))
