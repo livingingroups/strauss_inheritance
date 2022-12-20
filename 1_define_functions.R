@@ -144,6 +144,18 @@ add_new_id <- function(g, mother, reproduce, die, f_inherit, inheritance, rank.i
                  '.',
                  unique(g$generation+1))
   
+  new.id <- data.frame(id = n.id,
+                       rank = NA,
+                       matriline = g$matriline[reproduce],
+                       generation = unique(g$generation),
+                       rank.inher.precis = rank.inher.precis,
+                       rank.effect = rank.effect,
+                       replicate = replicate,
+                       mother = mother$id,
+                       inheritance = inheritance)
+  
+  new.id <- f_inherit(g, new.id, mother, rank.inher.precis)
+  
   g <- arrange(rbind(g[-die,], new.id), rank)
   g$rank <- 1:nrow(g)
   
