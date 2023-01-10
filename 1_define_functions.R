@@ -90,7 +90,7 @@ inherit_mri_oldest <- function(g, new.id, mother, rank.inher.precis){
     sibs.matriline <- rbind(oldest.sib, g[g$id %in% get_descendants(g, oldest.sib$id),])
     new.id$rank <- max(sibs.matriline$rank)+0.1
   }else{
-    new.id$rank  <- g$rank[g$id == new.id$mother[i]]+0.1
+    new.id$rank  <- g$rank[g$id == new.id$mother] +0.1
   }
   return(new.id)
 }
@@ -209,3 +209,4 @@ run_generations <- function(g, num.gens, generation, f_inherit, f_repro, f_mort,
   }
 }
 
+################################################################################

@@ -36,7 +36,7 @@ ranks <- ranks %>%
 
 
 ### Define states
-states <- c('alpha', letters[2:11])
+states <- letters[1:11]
 
 rank.state.list <- list()
 rank.state.passive.list <- list()

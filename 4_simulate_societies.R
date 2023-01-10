@@ -30,10 +30,12 @@ set.seed(1989)
 ################################################################################
 # Set invariant global parameters
 group.size <- 30
+nreplicates <- 20
+generations = 30
 
 letters.long <- c(letters,as.vector(t(outer(X = letters, Y = letters, paste0))))
 
-sr <- seq(0, 1, length.out = 30)
+sr <- seq(0, 1, length.out = group.size)
 plot(sr,repro_function(stan_rank = sr), type = 'l')
 points(sr, repro_function(stan_rank = sr, rank.effect = 0))
 points(sr, repro_function(stan_rank = sr, rank.effect = 2))
@@ -63,8 +65,7 @@ output.list <- list()
 ### Run simulations
 rank.inher.precis.list <- c(0, 2, 4)
 rank.effect.list <- c(0, 1, 2)
-nreplicates <- 20
-generations = 30
+
 
 for(replicate in 1:nreplicates){
   group$replicate <- replicate
@@ -113,7 +114,7 @@ for(i in unique(mor$inheritance)){
 
 
 
-save(output, file = 'rank_data_simulated.Rdata')
+save(output, group.size, file = 'rank_data_simulated.Rdata')
 
 # 
 # 
@@ -128,12 +129,12 @@ par(mfrow = c(3,3),
     oma = c(1,3.5,3,1))
 for(re in rank.effect.list[3:1]){
   for(ris in rank.inher.precis.list[3:1]){
-    output.example <- filter(output, replicate == 1, rank.inher.precis == ris, rank.effect == re)
+    output.example <- filter(output, replicate == 11, rank.inher.precis == ris, rank.effect == re)
     output.matrix <- matrix(data = NA, nrow = max(output.example$rank), ncol = max(output.example$generation+1))
     output.matrix[cbind(output.example$rank, output.example$generation+1)] <- factor(output.example$matriline, 
                                                                                         levels = unique(output.example$matriline))
                                                                                       
-    plot(output.matrix, col = magma(30), border = NA, key = NULL, xlab = '', ylab = '',
+    plot(output.matrix, col = magma(group.size), border = NA, key = NULL, xlab = '', ylab = '',
          main = '')
     box(col = 'black', bty = 'L')
     if(which(ris == rank.inher.precis.list) == 3)
@@ -151,7 +152,7 @@ for(re in rank.effect.list[3:1]){
     }
   }
 }
-dev.off()
+#dev.off()
 
 
 ### What on average are the ranks of added or removed individuals? 
@@ -182,3 +183,51 @@ mort <- ggplot(data = mortranks, aes(x = rank, color = inheritance)) +
 
 repro + mort
 
+#### Check average ranks of starting ids
+start.ids <- output[1:group.size,]$id
+nothing <- filter(output, rank.inher.precis == 0, rank.effect == 0)
+nothing %>% 
+  group_by(id) %>%
+  mutate(first_rank = first(rank)) %>%
+  ungroup() %>%
+  group_by(first_rank, generation) %>% 
+  summarize(rank = mean(rank)) %>%
+  ggplot(aes(x = generation, y = rank, group = first_rank, color = first_rank)) + 
+  geom_line() + 
+  theme_classic()
+
+mri <- filter(output, inheritance == "mri_youngest", rank.effect == 1)
+mri %>% 
+  group_by(replicate, id) %>%
+  mutate(first_rank = first(rank)) %>%
+  ungroup() %>%
+  group_by(first_rank, generation) %>% 
+  summarize(rank = mean(rank)) %>%
+  ggplot(aes(x = generation, y = rank, group = first_rank, color = first_rank)) + 
+  geom_line() + 
+  theme_classic()
+
+mri.norank <- filter(output, inheritance == "mri_youngest", rank.effect == 0)
+mri.norank %>% 
+  group_by(replicate, id) %>%
+  mutate(first_rank = first(rank)) %>%
+  ungroup() %>%
+  group_by(first_rank, generation) %>% 
+  summarize(rank = mean(rank)) %>%
+  ggplot(aes(x = generation, y = rank, group = first_rank, color = first_rank)) + 
+  geom_line() + 
+  theme_classic()
+
+
+mri.oldest <- filter(output, inheritance == "mri_oldest", rank.effect == 1)
+mri.oldest%>% 
+  group_by(replicate, id) %>%
+  mutate(first_rank = first(rank)) %>%
+  ungroup() %>%
+  group_by(first_rank, generation) %>% 
+  summarize(rank = mean(rank)) %>%
+  ggplot(aes(x = generation, y = rank, group = first_rank, color = first_rank)) + 
+  geom_line() + 
+  theme_classic()
+
+  

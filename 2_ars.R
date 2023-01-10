@@ -22,6 +22,15 @@ ars <- ars %>%
 
 ars$clan_num <- as.numeric(as.factor(ars$clan))
 
+### Number of reproductive events experienced by individual
+ars %>%
+  group_by(id) %>%
+  mutate(repro_scaled = repro_events/clan_size) %>%
+  summarize(total_repro_scaled = sum(repro_scaled))%>%
+  ggplot(aes(x = total_repro_scaled))+
+  geom_density() + 
+  theme_classic()
+  
 ars_dat <- list(ars = ars$ars, 
                 stan_rank = ars$stan_rank, 
                 clan = ars$clan_num, 
