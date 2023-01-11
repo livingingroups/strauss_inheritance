@@ -14,6 +14,7 @@ library(markovchain)
 library(ggplot2)
 # library(DynaRankR)
 library(patchwork )
+library(gridExtra)
 
 rm(list = ls())
 source('1_define_functions.R')
@@ -23,79 +24,11 @@ set.seed(1989)
 ################################################################################
 ### Extract dynamics and standardize to decimal ranks
 
-# sim.ranks.list <- list()
-# for(i in unique(output$inheritance)){
-#   for(re in unique(output$rank.effect)){
-#     for(r in unique(output$replicate)){
-#       ranks <- data.frame(filter(output, replicate == r, inheritance == i, rank.effect == re))
-#       ranks <- ranks %>% 
-#         rename(period = generation) %>%
-#         select(id, rank, period, rank.effect, inheritance, replicate) %>% 
-#         group_by(period) %>%
-#         mutate(max.rank = max(rank), 
-#                rank.decile = (rank-1)/(max.rank-1))
-#       ranks <- get_dynamics(ranks, type = 'rank')
-#       sim.ranks.list[[length(sim.ranks.list) +1]] <- ranks
-#     }
-#   }
-# }
-# sim.ranks <- do.call(rbind, sim.ranks.list)
-
 sim.ranks <- output %>% 
   rename(period = generation) %>%
   select(id, rank, period, rank.effect, inheritance, replicate)
 
-# sim.ranks <- sim.ranks %>%
-#   group_by(inheritance, rank.effect, replicate, id) %>%
-#   mutate(delta.active.decile = c(NA, (-delta.active[-1])/(max.rank[-length(id)]-1)),
-#          delta.passive.decile = c(NA, (rank[-1]-1)/(max.rank[-1]-1) -
-#                                     (rank[-length(id)]-1 - delta.active[-1])/(max.rank[-length(id)]-1)),
-#          delta.decile = c(NA, (rank[-1]-1)/(max.rank[-1]-1) - 
-#                             (rank[-length(id)]-1)/(max.rank[-length(id)]-1)))
-
 states <- letters[1:11]
-
-# 
-# rank.state.list <- list()
-# cumulative.changes.list <- list()
-# for(i in unique(sim.ranks$inheritance)){
-#   for(re in unique(output$rank.effect)){
-#     for(r in unique(output$replicate)){
-#       sim.ranks.treatment <- filter(sim.ranks, inheritance == i, 
-#                                     rank.effect == re,
-#                                     replicate == r)
-#       for(tid in unique(sim.ranks.treatment$id)){
-#         ## Skip individuals who are only around for 1 year
-#         if(nrow(sim.ranks.treatment[sim.ranks.treatment$id == tid,]) == 1)
-#           next
-#         
-#         start.rank <- sim.ranks.treatment[sim.ranks.treatment$id == tid,]$rank.decile[1]
-#         changes <- sim.ranks.treatment[sim.ranks.treatment$id == tid,]$delta.passive.decile[-1]
-#         rank.traj <- c(start.rank, round(start.rank + cumsum(changes), 6))
-#         
-#        # rank.state.list[[paste0('re', re)]][[i]][[tid]] <- states[ceiling(rank.traj * 10)]
-#         state.seq <- as.character(cut(rank.traj, 
-#                                       breaks = c(-0.001, 0.001, 0.1, 0.2, 0.3, 0.4, 
-#                                                  0.5, 0.6, 0.7, 0.8, 0.9, 1.001), 
-#                                       labels = letters[1:11]))
-#         rank.state.list[[paste0('re', re)]][[i]][[length(rank.state.list[[paste0('re', re)]][[i]]) + 1]] <- state.seq
-#         
-#        
-#         
-#         
-#         
-#         
-#         # ## need to fix this because its overwriting replicates
-#         # cumulative.changes.list[[paste0('re', re)]][[i]][[tid]] <- 
-#         #   data.frame(id = tid, lifetime = length(rank.traj), 
-#         #              starting.rank = start.rank,
-#         #              total.change = cumsum(changes))
-#       }
-#     }
-#   }
-# }
-#   
-#cumulative.changes <- do.call(rbind, cumulative.changes.list)
 
 rank.state.list <- list()
 cumulative.changes.list <- list()
@@ -115,16 +48,7 @@ for(i in unique(sim.ranks$inheritance)){
                                                  0.5, 0.6, 0.7, 0.8, 0.9, 1.001), 
                                       labels = letters[1:11]))
         rank.state.list[[paste0('re', re)]][[i]][[length(rank.state.list[[paste0('re', re)]][[i]]) + 1]] <- state.seq
-        
-        
-        
-        
-        
-        # ## need to fix this because its overwriting replicates
-        # cumulative.changes.list[[paste0('re', re)]][[i]][[tid]] <- 
-        #   data.frame(id = tid, lifetime = length(rank.traj), 
-        #              starting.rank = start.rank,
-        #              total.change = cumsum(changes))
+
       }
     }
   }
@@ -147,14 +71,14 @@ transitions.total.mocor.weak.estimate <- transitions.total.mocor.weak$estimate@t
 transitions.total.mocor.weak.norank <- markovchainFit(data = rank.state.list[["re0"]][["parent_offspring_cor0"]], method = 'map', confint = T)
 transitions.total.mocor.weak.norank.estimate <- transitions.total.mocor.weak.norank$estimate@transitionMatrix
 
-transitions.total.mocor.medium <- markovchainFit(data = rank.state.list[["re1"]][["parent_offspring_cor2"]], method = 'map', confint = T)
+transitions.total.mocor.medium <- markovchainFit(data = rank.state.list[["re1"]][["parent_offspring_cor4"]], method = 'map', confint = T)
 transitions.total.mocor.medium.estimate <- transitions.total.mocor.medium$estimate@transitionMatrix
 
-transitions.total.mocor.strong <- markovchainFit(data = rank.state.list[["re1"]][["parent_offspring_cor4"]], method = 'map', confint = T)
+transitions.total.mocor.strong <- markovchainFit(data = rank.state.list[["re1"]][["parent_offspring_cor2"]], method = 'map', confint = T)
 transitions.total.mocor.strong.estimate <- transitions.total.mocor.strong$estimate@transitionMatrix
 
 
-### Set up monte carlo
+### Set up markov chain
 
 mc.mri.youngest <- new('markovchain', states = states,
                   transitionMatrix = transitions.total.mri.youngest.estimate)
@@ -177,9 +101,9 @@ mc.mocor.medium <- new('markovchain', states = states,
 mc.mocor.strong <- new('markovchain', states = states,
                              transitionMatrix = transitions.total.mocor.strong.estimate)
 
-## Run monte carlo simulation
+## Run markov chain simulation
 
-repro_events <- 200
+repro_events <- 120 ## Based on the expected number of reproductive events experience by a moderately long-lived female
 reps = 10000
 for(condition in c('mri.youngest', 'mri.youngest.norank', 'mri.oldest', 'mocor.weak', 'mocor.weak.norank', 'mocor.medium', 'mocor.strong')){
   predicted.lifetime.ranks <- list()
@@ -199,7 +123,6 @@ for(condition in c('mri.youngest', 'mri.youngest.norank', 'mri.oldest', 'mocor.w
 }
 
 ### Four by four comparison of combinations of inheritance and rank effects
-pdf('plots/hyena_like.pdf', width = 4, height = 4)
 mri.youngest <- ggplot(data = mri.youngest.predicted.ranks, aes(x = time, y = rank, col = start, fill = start))+
   geom_ribbon(aes(ymin = rank.lower + 0.25, ymax = rank.upper - 0.25), alpha = 0.3, color = NA)+
   geom_line(size = 1)+
@@ -208,14 +131,14 @@ mri.youngest <- ggplot(data = mri.youngest.predicted.ranks, aes(x = time, y = ra
   scale_color_manual(values = viridis::magma(7))+
   scale_fill_manual(values = viridis::magma(7))+
   theme(legend.position = 'none', axis.text = element_blank(), 
-        axis.ticks = element_blank())+
-  xlab('Time')+
-  ylab('Rank')+
-  ggtitle('Hyena-like: MRI and rank effects')
-mri.youngest
-dev.off()
+        axis.ticks = element_blank(), axis.title.x = element_blank())+
+  ylab('Rank')
+mri.youngest 
+hyenalike <- mri.youngest + theme(legend.position = 'none', axis.text = element_blank(), 
+                                    axis.ticks = element_blank(), axis.title.x = element_text())+
+  ylab('Rank') + 
+  xlab('Time')
 
-pdf('plots/yes_inheritance_no_rank.pdf', width = 4, height = 4)
 mri.youngest.norank <- ggplot(data = mri.youngest.norank.predicted.ranks, aes(x = time, y = rank, col = start, fill = start))+
   geom_ribbon(aes(ymin = rank.lower + 0.25, ymax = rank.upper - 0.25), alpha = 0.3, color = NA)+
   geom_line(size = 1)+
@@ -224,14 +147,9 @@ mri.youngest.norank <- ggplot(data = mri.youngest.norank.predicted.ranks, aes(x 
   scale_color_manual(values = viridis::magma(7))+
   scale_fill_manual(values = viridis::magma(7))+
   theme(legend.position = 'none', axis.text = element_blank(), 
-        axis.ticks = element_blank())+
-  xlab('Time')+
-  ylab('Rank')+
-  ggtitle('Inheritance no rank effect')
+        axis.ticks = element_blank(), axis.title = element_blank())
 mri.youngest.norank
-dev.off()
 
-pdf('plots/no_inheritance_no_rank.pdf', width = 4, height = 4)
 mocor.weak.norank <- ggplot(data = mocor.weak.norank.predicted.ranks, aes(x = time, y = rank, col = start, fill = start))+
   geom_ribbon(aes(ymin = rank.lower + 0.25, ymax = rank.upper - 0.25), alpha = 0.3, color = NA)+
   geom_line(size = 1)+
@@ -240,14 +158,11 @@ mocor.weak.norank <- ggplot(data = mocor.weak.norank.predicted.ranks, aes(x = ti
   scale_color_manual(values = viridis::magma(7))+
   scale_fill_manual(values = viridis::magma(7))+
   theme(legend.position = 'none', axis.text = element_blank(), 
-        axis.ticks = element_blank())+
-  xlab('Time')+
-  ylab('Rank')+
-  ggtitle('No inheritance or rank effects on reproduction')
+        axis.ticks = element_blank(), axis.title.y = element_blank())+
+  xlab('Time')
 mocor.weak.norank
-dev.off()
 
-pdf('plots/no_inheritance_yes_rank.pdf', width = 4, height = 4)
+
 mocor.weak <- ggplot(data = mocor.weak.predicted.ranks, aes(x = time, y = rank, col = start, fill = start))+
   geom_ribbon(aes(ymin = rank.lower + 0.25, ymax = rank.upper - 0.25), alpha = 0.3, color = NA)+
   geom_line(size = 1)+
@@ -256,18 +171,18 @@ mocor.weak <- ggplot(data = mocor.weak.predicted.ranks, aes(x = time, y = rank, 
   scale_color_manual(values = viridis::magma(7))+
   scale_fill_manual(values = viridis::magma(7))+
   theme(legend.position = 'none', axis.text = element_blank(), 
-        axis.ticks = element_blank())+
-  xlab('Time')+
+        axis.ticks = element_blank(), axis.text.x = element_blank())+
   ylab('Rank')+
-  ggtitle('Mother-offspring correlation (weak)')
+  xlab('Time')
 mocor.weak
+
+
+pdf('plot_grid.pdf', width = 5, height = 5)
+(mri.youngest + mri.youngest.norank) /
+  ( mocor.weak + mocor.weak.norank) + plot_annotation(tag_levels = 'A') 
 dev.off()
 
-(mri.youngest + mocor.weak) /
-  (mri.youngest.norank + mocor.weak.norank)
 
-
-pdf('plots/mri_oldest_sim.pdf', width = 4, height = 4)
 mri.oldest <- ggplot(data = mri.oldest.predicted.ranks, aes(x = time, y = rank, col = start, fill = start))+
   geom_ribbon(aes(ymin = rank.lower + 0.25, ymax = rank.upper - 0.25), alpha = 0.3, color = NA)+
   geom_line(size = 1)+
@@ -278,11 +193,11 @@ mri.oldest <- ggplot(data = mri.oldest.predicted.ranks, aes(x = time, y = rank, 
   theme(legend.position = 'none', axis.text = element_blank(), 
         axis.ticks = element_blank())+
   xlab('Time')+
-  ylab('Rank')+
-  ggtitle('MRI oldest ascendancy')
+  ylab('Rank')
 mri.oldest
-dev.off()
 
+
+### Not included in paper, but intermediate as expected ### 
 pdf('plots/mri_mocor_medium_sim.pdf', width = 4, height = 4)
 mocor.medium <- ggplot(data = mocor.medium.predicted.ranks, aes(x = time, y = rank, col = start, fill = start))+
   geom_ribbon(aes(ymin = rank.lower + 0.25, ymax = rank.upper - 0.25), alpha = 0.3, color = NA)+
@@ -294,12 +209,11 @@ mocor.medium <- ggplot(data = mocor.medium.predicted.ranks, aes(x = time, y = ra
   theme(legend.position = 'none', axis.text = element_blank(), 
         axis.ticks = element_blank())+
   xlab('Time')+
-  ylab('Rank')+
-  ggtitle('Mother-offspring correlation (medium)')
+  ylab('Rank')
 mocor.medium
 dev.off()
 
-pdf('plots/mri_mocor_strong_sim.pdf', width = 4, height = 4)
+
 mocor.strong <- ggplot(data = mocor.strong.predicted.ranks, aes(x = time, y = rank, col = start, fill = start))+
   geom_ribbon(aes(ymin = rank.lower + 0.25, ymax = rank.upper - 0.25), alpha = 0.3, color = NA)+
   geom_line(size = 1)+
@@ -310,14 +224,13 @@ mocor.strong <- ggplot(data = mocor.strong.predicted.ranks, aes(x = time, y = ra
   theme(legend.position = 'none', axis.text = element_blank(), 
         axis.ticks = element_blank())+
   xlab('Time')+
-  ylab('Rank')+
-  ggtitle('Mother-offspring correlation (strong)')
+  ylab('Rank')
+
 mocor.strong
+
+pdf('different_inheritance_styles.pdf', height = 2.5, width = 7.5)
+hyenalike + mri.oldest + mocor.strong + plot_annotation(tag_levels = 'A')
 dev.off()
-
-
-
-
 
 
 
