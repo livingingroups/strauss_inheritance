@@ -5,7 +5,7 @@
 #                        Eli Strauss Dec 2022
 ################################################################################
 
-library(hyenadata)
+library(hyenadata) ### Version 1.2.92
 library(dplyr)
 library(here)
 
@@ -34,10 +34,6 @@ ars[is.na(ars$ars),]$ars <- 0
 
 ### Assemble rank data
 tblLifeHistory.wide <- left_join(tblLifeHistory.wide, tblHyenas[,c('id', 'sex')])
-lifespans <- filter(tblLifeHistory.wide, sex == 'f', !is.na(disappeared))
-lifespans$lifespan <- as.numeric(lifespans$disappeared - lifespans$dob)/365.25
-mean(filter(lifespans, lifespan >= 3)$lifespan)
-
 
 ranks <- tblFemaleRanks[c('clan', 'year', 'id', 'rank')]
 ranks <- ranks %>%
