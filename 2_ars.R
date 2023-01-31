@@ -10,9 +10,10 @@ options(stringsAsFactors = FALSE)
 library(dplyr)
 library(here)
 library(rethinking)
+library(ggplot2)
 
+plot.dir <- '~/Dropbox/Documents/Research/Full_projects/2023 Inheritancy_mobility/plots/'
 load('0_hyena_data.RData')
-
 
 ars <- ars %>%
   group_by(clan, year) %>%
@@ -20,119 +21,96 @@ ars <- ars %>%
   repro_events = sum(ars),
   clan_size = length(id))
 
+
 ars$clan_num <- as.numeric(as.factor(ars$clan))
 
-### Number of reproductive events experienced by individual
+### Number of reproductive events experienced for guiding markov chain simulation
+svg(filename = paste0(plot.dir, '/repro_events_per_year.svg'), width = 6, height = 4)
 ars %>%
   group_by(id) %>%
   mutate(repro_scaled = repro_events/clan_size) %>%
-  summarize(total_repro_scaled = sum(repro_scaled))%>%
-  ggplot(aes(x = total_repro_scaled))+
-  geom_density() + 
-  theme_classic()
+  summarize(total_repro_scaled = sum(repro_scaled),
+            repro_longevity = length(repro_events))%>%
+  ggplot(aes(x = repro_longevity, y = total_repro_scaled))+
+  geom_point() + 
+  geom_smooth(color = 'black', method = 'loess')+
+  theme_classic()+
+  ylab('Recruitment events experienced\n(scaled by clan size)')+
+  xlab('Number of years observed reproducing')+
+  geom_segment(x = 10, xend = 10, y = -2, yend = 4, lty = 2)+
+  geom_segment(x = -2, xend = 10, y = 4, yend = 4, lty = 2)
+dev.off()
   
 ars_dat <- list(ars = ars$ars, 
                 stan_rank = ars$stan_rank, 
                 clan = ars$clan_num, 
-                repro_events = ars$repro_events,
-                clan_size = scale(ars$clan_size))
-
+                repro_events = ars$repro_events)
 
 
 ars.binom <- ulam(
   alist(
     ars ~ dbinom(repro_events, p),
-    logit(p) <- a_clan[clan] + B_rank * stan_rank + B_clan_size * clan_size,
+    logit(p) <- u + a_clan[clan] + B_rank * stan_rank,
     
-    a_clan[clan] ~ dnorm(u, sigma),
+    a_clan[clan] ~ dnorm(0, sigma),
     u ~ dnorm(0, 1.5),
     sigma ~ dexp(1),
-    B_rank ~ dnorm(0, 1.5),
-    B_clan_size ~ dnorm(0, 1.5)
-  ), data = ars_dat, chains = 3, iter = 3000, cores = 3, log_lik = T)
+    B_rank ~ dnorm(0, 1.5)
+  ), data = ars_dat, chains = 3, iter = 6000, cores = 2, log_lik = T)
 
 precis(ars.binom, depth = 2)
 
 model_fit <- precis(ars.binom)
 u_fit = model_fit['u','mean']
 B_rank_fit = model_fit['B_rank','mean']
-B_clan_size_fit = model_fit['B_clan_size','mean']
-sr <-  seq(from = 1, to = 0, length.out = 25)
+sr <-  seq(from = 1, to = 0, length.out = 30)
 
-repro_function <- function(stan_rank, clan_size = 0, 
-                      B_clan_size = B_clan_size_fit,
+repro_function <- function(stan_rank, 
                       B_rank = B_rank_fit, 
                       u = u_fit,
                       rank.effect = 1){
-  x = u + clan_size * B_clan_size + stan_rank*B_rank * rank.effect
+  x = u + stan_rank*B_rank * rank.effect
   p <- 1/(1 + exp(-x))
   return(p)
 }
 
-save(u_fit, B_rank_fit, B_clan_size_fit, repro_function, file = '2_repro_function.RData')
+save(u_fit, B_rank_fit, repro_function, file = '2_repro_function.RData')
+
+samps <- extract.samples(ars.binom,n = 300)
+
+rf_post <- function(u, B_rank){
+  x = u + seq(from = 0, to = 1, length.out = 30)*B_rank
+  p <- 1/(1 + exp(-x))
+  return(p)
+}
+
+p.preds.list <- list()
+for(i in 1:length(samps[[2]])){
+  p.preds.list[[length(p.preds.list)+1]] <- 
+    data.frame(probs = rf_post(samps$u[i], samps$B_rank[i]),
+               sample = i,
+               category = 'post',
+               rank = 1:30)
+}
+p.preds <- do.call(rbind, p.preds.list)
+
+p.preds <- rbind(p.preds,
+                 data.frame(probs = repro_function(seq(from = 0, to = 1, length.out = 30)),
+                            sample = -1,
+                            category = 'mean',
+                            rank = 1:30))
+
+svg(paste0(plot.dir, 'prob_reproduce.svg'), width = 6, height = 4)
+ggplot(data = filter(p.preds, category == 'post'), aes(x = rank, y = probs, group = sample))+
+  geom_line(size = 0.1, alpha = 0.2)+
+  geom_line(data = filter(p.preds, category == 'mean'), size = 2)+
+  theme_classic() +
+  xlab('Rank')+
+  ylab('Probablity of being selected to reproduce')+
+  scale_x_continuous(breaks = c(1,30), labels = c('lowest', 'highest'))
+dev.off()
 
 
 
 
 
-
-
-
-
-ps <- link(ars.binom)
-ps_sim <- link(ars.binom, data = list(stan_rank = seq(from = 1, to = 0, length.out = 25),
-                                      clan = rep(4, 25),
-                                      clan_size = rep(0, 25)),
-               replace = list(clan = rep(0,25)))
-
-p_repro <- data.frame(stan_rank = ars$stan_rank,
-                      p = apply(ps, mean, MARGIN = 2))
-p_sim <- data.frame(stan_rank = seq(from = 1, to = 0, length.out = 25),
-                    p = apply(ps_sim, mean, MARGIN = 2))
-
-ggplot(p_repro, aes(x = stan_rank, y = p))+
-  geom_point()+
-  geom_smooth(color = 'black') +
-  #geom_line(data = p_sim, color = 'dodgerblue')+
-  geom_line(data = data.frame(stan_rank = sr,
-                              p = inv_logit(u + 0 * B_clan_size + sr*B_rank)),
-            size = 1, color = 'dodgerblue')+
-  theme_classic()
-
-
-# ### Reproductive events by clan size
-# ggplot(data  = ars, aes(x = clan_size, y = repro_events))+
-#   geom_point() +
-#   geom_smooth (method = 'lm') +
-#   theme_classic() +
-#   geom_vline(aes(xintercept = 25))
-
-
-# ars.mod <- ulam(
-#   alist(
-#     ars ~ dpois(l),
-#     log(l) <- a_clan[clan] + B_rank * stan_rank,
-#     
-#     a_clan[clan] ~ dnorm(u, sigma),
-#     u ~ dnorm(0, 1.5),
-#     sigma ~ dexp(1),
-#     B_rank ~ dnorm(0, 1.5)
-#   ), data = ars_dat, chains = 4, iter = 1000)
-# 
-
-# summary(ars.mod)
-# ars$predicted <- apply(X = sim(ars.mod), mean, MARGIN = 2)
-# 
-# for(i in 1:30){
-#   offspring <- rpois(length(sr), lambda = exp(-2.36 + sr * 1.2))
-# cat(sum(offspring), ', ')
-# }
-# 
-# ggplot(ars, aes(x = stan_rank, y = ars))+ 
-#   geom_smooth(color=  'black') +
-#   geom_smooth(aes(y = predicted), color = 'dodgerblue', lty = 2, se = F)+
-#   theme_classic()+
-#   coord_cartesian(ylim = c(0, 0.8))
-# 
-# rpois(length(sr), lambda = exp(-2.36 + sr * 1.2)/2)
-# mean(exp(-2.36 + sr * 1.2))

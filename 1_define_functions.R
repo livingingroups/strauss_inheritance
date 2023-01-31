@@ -65,7 +65,7 @@ pick_mortality <- function(g, f_mort, rank.efect){
 ################################################################################
 
 ################################################################################
-inherit_mri_youngest <- function(g, new.id, mother, rank.inher.precis){
+inherit_mri_youngest <- function(g, new.id, mother){
   new.id$rank <- g$rank[match(mother$id, g$id)]+0.1
   return(new.id)
 }
@@ -81,7 +81,7 @@ get_descendants <- function(g, id){
 ################################################################################
 
 ################################################################################
-inherit_mri_oldest <- function(g, new.id, mother, rank.inher.precis){
+inherit_mri_oldest <- function(g, new.id, mother){
   
   sibs <- g[!is.na(g$mother) & g$mother == new.id$mother,]
   if(nrow(sibs)){
@@ -96,28 +96,57 @@ inherit_mri_oldest <- function(g, new.id, mother, rank.inher.precis){
 }
 ################################################################################
 
+# ################################################################################
+# inherit_parent_offspring_cor <- function(g, new.id, mother, rank.inher.precis){
+#   
+#   min.change <-  -mother$rank 
+#   max.change <- max(g$rank) - mother$rank + 1
+#   
+#   if(rank.inher.precis == 0){
+#     place.above <- sample(c(g$rank, max(g$rank) + 1), 1)
+#     new.id$rank <- place.above - 0.1
+#   }else{
+#     new.id$rank <- mother$rank + trunc_norm(mean = 0, n = 1, 
+#                                             sd = max(g$rank)/2^rank.inher.precis,
+#                                             max = max.change,
+#                                             min = min.change)
+#   }
+#   
+#   return(new.id)
+# }
+# ################################################################################
+
+
 ################################################################################
-inherit_parent_offspring_cor <- function(g, new.id, mother, rank.inher.precis){
-  
-  min.change <-  -mother$rank 
-  max.change <- max(g$rank) - mother$rank + 1
-  
-  if(rank.inher.precis == 0){
-    place.above <- sample(c(g$rank, max(g$rank) + 1), 1)
-    new.id$rank <- place.above - 0.1
-  }else{
-    new.id$rank <- mother$rank + trunc_norm(mean = 0, n = 1, 
-                                            sd = max(g$rank)/2^rank.inher.precis,
-                                            max = max.change,
-                                            min = min.change)
-  }
-  
+inherit_parent_offspring_cor <- function(g, new.id, mother){
+  new.id$rank <- mother$rank + sample(c(0.1, -0.1), size = 1)
   return(new.id)
 }
 ################################################################################
 
 ################################################################################
-add_new_id <- function(g, mother, reproduce, die, f_inherit, inheritance, rank.inher.precis){
+find_limit <- function(m, pow = 1000){
+  mbefore <- m
+  mprime <- mbefore %^% pow
+  while(any(mprime - mbefore > 0.001)){
+    pow <- pow + 100
+    mbefore <- mprime
+    mprime <- mbefore %^% pow
+  }
+  return(mprime[1,])
+}
+################################################################################
+
+################################################################################
+inherit_random <- function(g, new.id, mother){
+  place.above <- sample(c(g$rank, max(g$rank+1)), 1)
+  new.id$rank <- place.above - 0.1
+  return(new.id)
+}
+################################################################################
+
+################################################################################
+add_new_id <- function(g, mother, reproduce, f_mort, f_inherit, inheritance, rank.effect){
   
   reproducer <- g$id[reproduce]
   n.id <- paste0(str_extract(reproducer,
@@ -131,44 +160,43 @@ add_new_id <- function(g, mother, reproduce, die, f_inherit, inheritance, rank.i
                        rank = NA,
                        matriline = g$matriline[reproduce],
                        generation = unique(g$generation),
-                       rank.inher.precis = rank.inher.precis,
                        rank.effect = rank.effect,
                        replicate = replicate,
                        mother = mother$id,
                        inheritance = inheritance)
   
-  new.id <- f_inherit(g, new.id, mother, rank.inher.precis)
+  new.id <- f_inherit(g, new.id, mother)
+  g <- arrange(rbind(g, new.id), rank)
+  g$rank <- 1:nrow(g)
   
-  g <- arrange(rbind(g[-die,], new.id), rank)
+  ## Mortality
+  die <- g$id[pick_mortality(g, f_mort, rank.effect)]
+  g <- g[-which(g$id == die),]
   g$rank <- 1:nrow(g)
   
   return(g)
 }
 
-
-
 ################################################################################
 
 ################################################################################
-generation_step <- function(g, f_inherit, f_repro, f_mort, inheritance, rank.inher.precis, rank.effect){
+generation_step <- function(g, f_inherit, f_repro, f_mort, inheritance, rank.effect){
   
   initial.group <- g
   reproduce <- pick_reproducer(g, f_repro, rank.effect)
   mother <- g[reproduce,]
-  die <- pick_mortality(g, f_mort, rank.effect)
-
-  g <- add_new_id(g, mother, reproduce, die, f_inherit, inheritance, rank.inher.precis)
+  g <- add_new_id(g, mother, reproduce, f_mort, f_inherit, inheritance, rank.effect)
   
   g$generation <- g$generation + 1
   
   #### Record data into objects in global environment
-  .GlobalEnv$mor.list[[length(.GlobalEnv$mor.list)+1]] <- data.frame(mother.rank = g[match(g[!g$id %in% initial.group$id,]$mother, g$id),]$rank,
-                                                                     offspring.rank = g[!g$id %in% initial.group$id,]$rank,
-                                                                     rank.inher.precis = rank.inher.precis,
-                                                                     rank.effect = rank.effect,
-                                                                     replicate = replicate,
-                                                                     mother = g[match(g[!g$id %in% initial.group$id,]$mother, g$id),]$id,
-                                                                     inheritance)
+  if(nrow(g[!g$id %in% initial.group$id,]))
+    .GlobalEnv$mor.list[[length(.GlobalEnv$mor.list)+1]] <- data.frame(mother.rank = g[match(g[!g$id %in% initial.group$id,]$mother, g$id),]$rank,
+                                                                       offspring.rank = g[!g$id %in% initial.group$id,]$rank,
+                                                                       rank.effect = rank.effect,
+                                                                       replicate = replicate,
+                                                                       mother = g[match(g[!g$id %in% initial.group$id,]$mother, g$id),]$id,
+                                                                       inheritance)
   
   
   mean.ranks <- by(g,
@@ -186,7 +214,6 @@ generation_step <- function(g, f_inherit, f_repro, f_mort, inheritance, rank.inh
                rank.diff = mean.ranks[2:nrow(mean.ranks),'mean.rank'] - 
                  mean.ranks[1:(nrow(mean.ranks)-1),'mean.rank'],
                generation = unique(g$generation),
-               rank.inher.precis = rank.inher.precis,
                rank.effect = rank.effect,
                replicate = replicate)
   
@@ -195,18 +222,20 @@ generation_step <- function(g, f_inherit, f_repro, f_mort, inheritance, rank.inh
 
 ################################################################################
 run_generations <- function(g, num.gens, generation, f_inherit, f_repro, f_mort, 
-                            inheritance, rank.inher.precis, rank.effect){
+                            inheritance, rank.effect){
   g$inheritance <- inheritance
   if(num.gens == generation){
     return(g)
-    cat('Finished inheritance treatment: ', inheritance, '\n')
+    message(paste0('Finished inheritance treatment: ', inheritance, '\n'))
   }else{
     return(rbind(g, run_generations(generation_step(g, f_inherit, f_repro, f_mort, 
-                                                    inheritance, rank.inher.precis, rank.effect), 
+                                                    inheritance, rank.effect), 
                                     num.gens, generation+1, f_inherit = f_inherit, 
                                     f_repro = f_repro, f_mort = f_mort, inheritance, 
-                                    rank.inher.precis, rank.effect)))
+                                    rank.effect)))
   }
 }
+
+################################################################################
 
 ################################################################################
