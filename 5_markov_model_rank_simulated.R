@@ -134,13 +134,6 @@ for(condition in conditions){
   assign(paste0(condition, '.predicted.ranks'), do.call(rbind, predicted.lifetime.ranks))
 }
 
-save(mc.mri.youngest, mc.mri.oldest, mc.none, mc.mocor,
-     mc.mri.youngest.norank, mc.none.norank,
-     predicted.trajectories, mri.youngest.predicted.ranks, 
-     mri.oldest.predicted.ranks, none.predicted.ranks, mocor.predicted.ranks,
-     states,
-     file = '5_sim_markov_chains.Rdata')
-
 
 ### Four by four comparison of combinations of inheritance and rank effects
 mri.youngest <- ggplot(data = filter(mri.youngest.predicted.ranks, start %in% states), 
@@ -262,17 +255,6 @@ none.limit <- ggplot(data = limit.none,
 #none.raw.data + none.limit + none
 
 
-pdf(paste(plot.dir, 'simulations.pdf'), width = 8, height = 4)
-mri.youngest + mri.youngest.limit +
-  mri.youngest.norank + mri.youngest.norank.limit +
-  none + none.limit +
-  none.norank + none.norank.limit + 
-  plot_layout(design = '
-  AAABBCCCDD
-  EEEFFGGGHH
-  ')
-dev.off()
-
 # Median hierarchy position decile (10 = highest 10% s, 1 = lowest 10%) expected rank in the long run
 seq(from = 10, to = 1)[median(rep(1:length(states), times = round(limit.mri.youngest$probs * 1000000)))]
 seq(from = 10, to = 1)[median(rep(1:length(states), times = round(limit.mri.youngest.norank$probs * 1000000)))]
@@ -280,4 +262,13 @@ seq(from = 10, to = 1)[median(rep(1:length(states), times = round(limit.none$pro
 seq(from = 10, to = 1)[median(rep(1:length(states), times = round(limit.none.norank$probs * 1000000)))]
 
 
-
+save(mc.mri.youngest, mc.mri.oldest, mc.none, mc.mocor,
+     mc.mri.youngest.norank, mc.none.norank,
+     predicted.trajectories, mri.youngest.predicted.ranks, 
+     mri.oldest.predicted.ranks, none.predicted.ranks, mocor.predicted.ranks,
+     mri.youngest,  mri.youngest.limit, 
+     mri.youngest.norank, mri.youngest.norank.limit,
+     none, none.limit,
+     none.norank, none.norank.limit, 
+     states,
+     file = '5_sim_markov_chains.Rdata')

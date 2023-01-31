@@ -217,6 +217,28 @@ mocor.queen
 #   none.queen + none.norank.queen
 # dev.off()
 
+mri.youngest + 
+  geom_line(data = filter(mri.youngestqueen.predicted.ranks, start == queen.states[1]), col = 'coral', lty = 2, size = 1)
+
+none + 
+  geom_line(data = filter(nonequeen.predicted.ranks, start == queen.states[1]), col = 'coral', lty = 2, size = 1)
+
+
+pdf(paste(plot.dir, 'simulations.pdf'), width = 8, height = 4)
+mri.youngest + geom_line(data = filter(mri.youngestqueen.predicted.ranks, start == queen.states[1]), col = 'coral', lty = 2, size = 1) + 
+mri.youngest.limit +
+  mri.youngest.norank + geom_line(data = filter(mri.youngest.norankqueen.predicted.ranks, start == queen.states[1]), col = 'coral', lty = 2, size = 1) +  mri.youngest.norank.limit +
+  none + geom_line(data = filter(nonequeen.predicted.ranks, start == queen.states[1]), col = 'coral', lty = 2, size = 1) +
+  none.limit +
+  none.norank + geom_line(data = filter(none.norankqueen.predicted.ranks, start == queen.states[1]), col = 'coral', lty = 2, size = 1) +
+  none.norank.limit + 
+  plot_layout(design = '
+  AAABBCCCDD
+  EEEFFGGGHH
+  ')
+dev.off()
+
+
 
 #### Predicted reproduction over lifetime
 
