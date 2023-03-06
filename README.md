@@ -13,11 +13,11 @@ Files are numbered and listed in the order that they are used for analysis.
 
 **/0_create_ranks** - directory used for creating ranks used in subsequent analyses  
 | | | **1.hyena_intx_data.RData** - Interaction data used for inferring ranks  
-| | | **2.get_ranks_dynarank.R** - Script for inferring ranks. Note that this takes a very long time to run.  
+| | | **2.get_ranks_dynarank.R** - Script inferring ranks. Note that this takes a very long time to run.  
 | | | **female_ranks.RData** - Ranks output by prior script  
-**00_pull_data.R** - Script for assembling relevant data from the Mara Hyena Project database and combinng it with rank data. This script interacts with a private database and is thus not usable.  
-:point_down: **RECOMMENDED STARTING POINT** :point_down:
-**0_hyena_data.RData** - Complete dataset used in the remainder of analyses.
+**00_pull_data.R** - Script assembling relevant data from the Mara Hyena Project database and combining it with rank data. This script interacts with a private database and is thus not usable.  
+:point_down: **RECOMMENDED STARTING POINT** :point_down:  
+**0_hyena_data.RData** - Complete dataset used analyses.
 **1_define_functions.R** - Script defining functions used in simulations.   
 **2_ars.R** - Analysis of annual reproductive success in hyenas, used to parameterize simulations
 **2_repro_function.RData** - Function relating rank to reproductive success, created in previous script.   
