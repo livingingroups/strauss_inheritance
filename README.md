@@ -5,6 +5,8 @@
 This repository contains scripts and data for conducting the analysis for [this paper](https://royalsocietypublishing.org/journal/rstb). 
 For questions or comments, please contact straussed at gmail.com or submit an issue. 
 
+[![DOI](https://zenodo.org/badge/580336795.svg)](https://zenodo.org/badge/latestdoi/580336795)
+
 ----
 
 ### File description and instructions
