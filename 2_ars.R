@@ -12,7 +12,7 @@ library(here)
 library(rethinking)
 library(ggplot2)
 
-plot.dir <- '~/Dropbox/Documents/Research/Full_projects/2023 Inheritancy_mobility/plots/'
+plot.dir <- '~/../Dropbox/Documents/Research/Full_projects/2023 Inheritancy_mobility/plots/'
 load('0_hyena_data.RData')
 
 ars <- ars %>%
@@ -25,7 +25,7 @@ ars <- ars %>%
 ars$clan_num <- as.numeric(as.factor(ars$clan))
 
 ### Number of reproductive events experienced for guiding markov chain simulation
-svg(filename = paste0(plot.dir, '/repro_events_per_year.svg'), width = 6, height = 4)
+pdf(file = paste0(plot.dir, 'repro_events_per_year.pdf'), width = 6, height = 4)
 ars %>%
   group_by(id) %>%
   mutate(repro_scaled = repro_events/clan_size) %>%
@@ -33,7 +33,7 @@ ars %>%
             repro_longevity = length(repro_events))%>%
   ggplot(aes(x = repro_longevity, y = total_repro_scaled))+
   geom_point() + 
-  geom_smooth(color = 'black', method = 'loess')+
+  geom_smooth(color = 'black', method = 'lm')+
   theme_classic()+
   ylab('Recruitment events experienced\n(scaled by clan size)')+
   xlab('Number of years observed reproducing')+
@@ -100,7 +100,7 @@ p.preds <- rbind(p.preds,
                             category = 'mean',
                             rank = 1:30))
 
-svg(paste0(plot.dir, 'prob_reproduce.svg'), width = 6, height = 4)
+pdf(paste0(plot.dir, 'prob_reproduce.pdf'), width = 4, height = 4)
 ggplot(data = filter(p.preds, category == 'post'), aes(x = rank, y = probs, group = sample))+
   geom_line(size = 0.1, alpha = 0.2)+
   geom_line(data = filter(p.preds, category == 'mean'), size = 2)+

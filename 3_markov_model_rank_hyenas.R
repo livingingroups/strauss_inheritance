@@ -18,7 +18,7 @@ library(expm)
 source('1_define_functions.R')
 set.seed(1989)
 
-plot.dir <- '~/Dropbox/Documents/Research/Full_projects/2023 Inheritancy_mobility/plots/'
+plot.dir <- '~/../Dropbox/Documents/Research/Full_projects/2023 Inheritancy_mobility/plots/'
 
 load('0_hyena_data.RData')
 
@@ -52,6 +52,8 @@ ranks.full.life <- ranks %>%
          last.year < last.year.clan)
 length(unique(ranks.full.life$id))
 
+quantile(table(ranks.full.life$id))
+
 dynamics <- ranks.full.life %>% 
   group_by(id) %>%
   summarize(total.passive = abs(sum(delta.passive.decile, na.rm = T)),
@@ -81,9 +83,10 @@ dynamics.plot <- ggplot(dynamics)+
   theme(axis.title.y = element_blank(), legend.position = 'none', 
         axis.text.y = element_text(hjust = 0.5, angle = 90))+
   xlab('Magnitude of net displacement from starting rank')+
-  scale_fill_manual(values = c('black', 'gold2'))+
+  scale_fill_manual(values = c('gray30', 'gray50'))+
   scale_y_discrete(expand = c(0.1,0))+
-  labs(tag = 'A')
+  labs(tag = 'A')+
+  ggtitle('Observed hierarchy dynamics')
 #dev.off()
 
 
@@ -103,21 +106,21 @@ for(tid in unique(ranks$id)){
   changes.passive <- ranks[ranks$id == tid,]$delta.passive.decile[-1]
   changes.active <- ranks[ranks$id == tid,]$delta.active.decile[-1]
   
-  rank.traj.passive <- start.rank + cumsum(changes.passive)
-  rank.traj.active <- start.rank + cumsum(changes.active)
-  rank.traj <- round(start.rank + cumsum(changes.passive) + cumsum(changes.active), 6)
+  rank.traj.passive <- c(start.rank, start.rank + cumsum(changes.passive))
+  rank.traj.active <- c(start.rank, start.rank + cumsum(changes.active))
+  rank.traj <- c(start.rank, round(start.rank + cumsum(changes.passive) + cumsum(changes.active), 6))
   
-  rank.state.list[[tid]] <-  cut(rank.traj, 
+  rank.state.list[[tid]] <-  cut(rank.traj,
                                  breaks = c(-0.001, 0.1, 0.2, 0.3, 0.4,
-                                            0.5, 0.6, 0.7, 0.8, 0.9, 1.001), 
+                                            0.5, 0.6, 0.7, 0.8, 0.9, 1.001),
                                  labels = states)
-  rank.state.passive.list[[tid]] <- cut(rank.traj.passive, 
+  rank.state.passive.list[[tid]] <- cut(rank.traj.passive,
                                         breaks = c(-0.001, 0.1, 0.2, 0.3, 0.4,
-                                                   0.5, 0.6, 0.7, 0.8, 0.9, 1.001), 
+                                                   0.5, 0.6, 0.7, 0.8, 0.9, 1.001),
                                         labels = states)
-  rank.state.active.list[[tid]] <- cut(rank.traj.active, 
+  rank.state.active.list[[tid]] <- cut(rank.traj.active,
                                        breaks = c(-0.001, 0.1, 0.2, 0.3, 0.4,
-                                                  0.5, 0.6, 0.7, 0.8, 0.9, 1.001), 
+                                                  0.5, 0.6, 0.7, 0.8, 0.9, 1.001),
                                        labels = states)
   
   cumulative.changes.list[[tid]] <- data.frame(id = tid, lifetime = length(rank.traj), 
@@ -132,12 +135,12 @@ cumulative.changes <- do.call(rbind, cumulative.changes.list)
 #### Fit markov models
 
 ## Total changes
-transitions.total <- markovchainFit(data = rank.state.list, method = 'map', confint = T)
+transitions.total <- markovchainFit(data = rank.state.list, method = 'map')
 transitions.total.estimate <- transitions.total$estimate@transitionMatrix
 limit.hyena.total <- data.frame(probs = find_limit(transitions.total.estimate),
                                 states)
 
-transitions.passive <- markovchainFit(data = rank.state.passive.list, method = 'map', confint = T)
+transitions.passive <- markovchainFit(data = rank.state.passive.list, method = 'map')
 transitions.passive.estimate <- transitions.passive$estimate@transitionMatrix
 limit.hyena.passive <- data.frame(probs = find_limit(transitions.passive.estimate),
                                 states)
@@ -199,15 +202,16 @@ hyena.total <- ggplot(data = total.predicted.ranks, aes(x = time, y = rank.mean,
   ggtitle('Total dynamics')
 
 hyena.total.limit <- ggplot(data = limit.hyena.total, 
-                             aes(y = states[10:1], x = probs, fill = states[10:1])) +
+                             aes(y = states[10:1], x = probs, fill = states[10:1], color = states[10:1])) +
   geom_bar(stat= 'identity') +
   scale_fill_manual(values = colorRampPalette(c('gold', 'black'))(10))+
+  scale_color_manual(values = colorRampPalette(c('gold', 'black'))(10))+
   theme_void()+
   theme(legend.position = 'none',
         axis.line.x = element_line(), axis.text.x = element_text(),
         axis.title.x = element_text())+
   scale_x_continuous(breaks = c(0, 0.5),
-                     limits = c(0, 0.5), name = 'Steady state')
+                     limits = c(0, 0.6), name = 'Steady state')
 #total
 #dev.off()
 
@@ -229,15 +233,16 @@ hyena.passive <- ggplot(data = passive.predicted.ranks, aes(x = time, y = rank.m
 
 
 hyena.passive.limit <- ggplot(data = limit.hyena.passive, 
-                            aes(y = states[10:1], x = probs, fill = states[10:1])) +
+                            aes(y = states[10:1], x = probs, fill = states[10:1], color = states[10:1])) +
   geom_bar(stat= 'identity') +
   scale_fill_manual(values = colorRampPalette(c('gold', 'black'))(10))+
+  scale_color_manual(values = colorRampPalette(c('gold', 'black'))(10))+
   theme_void()+
   theme(legend.position = 'none',
         axis.line.x = element_line(), axis.text.x = element_text(),
         axis.title.x = element_text())+
   scale_x_continuous(breaks = c(0, 0.5),
-                     limits = c(0, 0.51), name = 'Steady state')
+                     limits = c(0, 0.6), name = 'Steady state')
 #passive
 #dev.off()
 
@@ -258,19 +263,21 @@ hyena.active <- ggplot(data = active.predicted.ranks, aes(x = time, y = rank.mea
   ggtitle('Active dynamics')
 
 hyena.active.limit <- ggplot(data = limit.hyena.active, 
-                              aes(y = states[10:1], x = probs, fill = states[10:1])) +
+                              aes(y = states[10:1], x = probs, fill = states[10:1], color = states[10:1])) +
   geom_bar(stat= 'identity') +
   scale_fill_manual(values = colorRampPalette(c('gold', 'black'))(10))+
+  scale_color_manual(values = colorRampPalette(c('gold', 'black'))(10))+
   theme_void()+
   theme(legend.position = 'none',
         axis.line.x = element_line(), axis.text.x = element_text(),
         axis.title.x = element_text())+
   scale_x_continuous(breaks = c(0, 0.5),
-                     limits = c(0, 0.5), name = 'Steady state')
+                     limits = c(0, 0.6), name = 'Steady state')
+
 #active
 #dev.off()
 
-svg(paste0(plot.dir, '/hyena_dynamics.svg'), height = 4.8, width = 9)
+pdf(paste0(plot.dir, 'hyena_dynamics.pdf'), height = 4.8, width = 9)
 dynamics.plot + hyena.total + hyena.total.limit + 
   hyena.passive + hyena.passive.limit + 
   hyena.active + hyena.active.limit + 

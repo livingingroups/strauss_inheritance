@@ -17,7 +17,7 @@ library(gridExtra)
 library(expm)
 
 rm(list = ls())
-plot.dir <- '~/Dropbox/Documents/Research/Full_projects/2023 Inheritancy_mobility/plots/'
+plot.dir <- '~/../Dropbox/Documents/Research/Full_projects/2023 Inheritancy_mobility/plots/'
 source('1_define_functions.R')
 load('4_rank_data_simulated.Rdata')
 load('2_repro_function.RData')
